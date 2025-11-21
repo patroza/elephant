@@ -320,7 +320,17 @@ func parseEntry(v any) {
 	label := str(m["label"])
 	folder := str(m["folderUri"])
 	file := str(m["fileUri"])
-	workspace := str(m["workspace"])
+	
+	// Handle workspace which can be a map with configPath
+	var workspace string
+	if wsVal := m["workspace"]; wsVal != nil {
+		if wsMap, ok := wsVal.(map[string]any); ok {
+			workspace = str(wsMap["configPath"])
+		} else {
+			workspace = str(wsVal)
+		}
+	}
+	
 	path := ""
 	kind := ""
 
