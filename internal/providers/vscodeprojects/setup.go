@@ -131,6 +131,7 @@ func Activate(single bool, identifier, action, query, args string, format uint8,
 	if action == "" {
 		action = ActionOpen
 	}
+	slog.Info(Name, "activate", "opening entry", "id", identifier, "action", action)
 
 	var cmdStr string
 	switch action {
@@ -146,6 +147,7 @@ func Activate(single bool, identifier, action, query, args string, format uint8,
 
 	cmd := exec.Command("sh", "-c", cmdStr)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	slog.Info(Name, "activate", "executing command", "cmd", cmdStr)
 	err := cmd.Start()
 	if err != nil {
 		slog.Error(Name, "activate", err)
@@ -338,6 +340,8 @@ func parseEntry(v any) {
 	} else if workspace != "" {
 		kind = "workspace"
 	}
+
+	slog.Info(Name, "loadDB", "found entry", "path", path, "label", label, "kind", kind)
 
 	entries = append(entries, projectEntry{Path: path, Label: label, Kind: kind, Raw: m})
 }
