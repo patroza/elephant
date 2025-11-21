@@ -284,7 +284,7 @@ func Activate(single bool, identifier, action string, query string, args string,
 }
 
 func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
-	start := time.Now()
+	startTime := time.Now()
 	items := make([]*pb.QueryResponse_Item, 0, len(entries))
 
 	for i := range entries {
@@ -307,12 +307,12 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 
 		var score int32
 		var positions []int32
-		var start int32
+		var fuzzyStart int32
 
 		if query != "" {
 			// Search in both label and path
 			searchText := fmt.Sprintf("%s %s", entry.Label, entry.Path)
-			score, positions, start = common.FuzzyScore(query, searchText, exact)
+			score, positions, fuzzyStart = common.FuzzyScore(query, searchText, exact)
 
 			if score < config.MinScore {
 				continue
@@ -341,12 +341,12 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 			Actions:    []string{ActionOpen},
 			Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 				Positions: positions,
-				Start:     start,
+				Start:     fuzzyStart,
 			},
 		})
 	}
 
-	slog.Info(Name, "query", query, "results", len(items), "duration", time.Since(start))
+	slog.Info(Name, "query", query, "results", len(items), "duration", time.Since(startTime))
 
 	return items
 }
@@ -362,4 +362,56 @@ func getURIForEntry(entry *Entry) string {
 
 func PrintDoc() {
 	fmt.Println(readme)
+}
+
+// Icon returns the configured icon for the provider.
+func Icon() string {
+	if config != nil {
+		return config.Icon
+	}
+	return "vscode"
+}
+
+// HideFromProviderlist indicates if the provider should be hidden from the providerlist.
+func HideFromProviderlist() bool {
+	if config != nil {
+		return config.HideFromProviderlist
+	}
+	return false
+}
+
+// State returns the provider state and available provider-level actions.
+// VSCode recent projects provider currently has no special states or actions.
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{
+		States:  []string{},
+		Actions: []string{},
+	}
+}
+
+// Available checks if the provider can operate (state DB exists and code command is present).
+func Available() bool {
+	// Ensure the DB path is expanded similarly to Setup (in case Available is called before Setup).
+	dbPath := "~/.config/Code/User/globalStorage/state.vscdb"
+	if config != nil && config.DBPath != "" {
+		dbPath = config.DBPath
+	}
+	if strings.HasPrefix(dbPath, "~/") {
+		home, _ := os.UserHomeDir()
+		dbPath = filepath.Join(home, dbPath[2:])
+	}
+
+	// Check code command
+	if cmdPath, err := exec.LookPath("code"); cmdPath == "" || err != nil {
+		slog.Info(Name, "available", "code command not found. disabling.")
+		return false
+	}
+
+	// Check DB file exists
+	if !common.FileExists(dbPath) {
+		slog.Info(Name, "available", "VSCode state DB not found", "path", dbPath)
+		return false
+	}
+
+	return true
 }
