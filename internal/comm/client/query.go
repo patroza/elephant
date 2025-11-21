@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -33,12 +34,31 @@ func init() {
 
 func Query(data string, async, j bool) {
 	v := strings.Split(data, ";")
-	maxresults, _ := strconv.Atoi(v[2])
+	if len(v) < 3 {
+		panic("query: expected at least 3 semicolon-separated fields: providers;query;maxresults[;exact]")
+	}
+
+	maxresults, err := strconv.Atoi(v[2])
+	if err != nil {
+		panic(fmt.Sprintf("query: invalid maxresults '%s': %v", v[2], err))
+	}
+
+	providers := strings.Split(v[0], ",")
+	if len(providers) == 0 || (len(providers) == 1 && providers[0] == "") {
+		panic("query: no providers specified")
+	}
+
+	exact := false
+	if len(v) > 3 {
+		// treat 4th element as exactsearch boolean ("true" / "false")
+		exact = strings.EqualFold(v[3], "true") || v[3] == "1"
+	}
 
 	req := pb.QueryRequest{
-		Providers:  strings.Split(v[0], ","),
-		Query:      v[1],
-		Maxresults: int32(maxresults),
+		Providers:   providers,
+		Query:       v[1],
+		Maxresults:  int32(maxresults),
+		Exactsearch: exact,
 	}
 
 	b, err := json.Marshal(&req)
@@ -71,29 +91,43 @@ func Query(data string, async, j bool) {
 	for {
 		header, err := reader.Peek(5)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			panic(err)
 		}
 
-		if !async && header[0] == done {
-			break
-		}
-
-		if header[0] != 0 && header[0] != 1 && header[0] != done && header[0] != empty {
-			panic("invalid protocol prefix")
-		}
-
+		code := header[0]
 		length := binary.BigEndian.Uint32(header[1:5])
 
+		// Consume the header + payload now
 		msg := make([]byte, 5+length)
 		_, err = io.ReadFull(reader, msg)
 		if err != nil {
 			panic(err)
 		}
 
+		// Status frames (done / empty) carry no JSON payload and must be skipped
+		if code == done {
+			if !async { // end of synchronous query
+				break
+			}
+			// async mode: continue; may receive further updates
+			continue
+		}
+		if code == empty { // no results
+			continue
+		}
+
+		if code != 0 && code != 1 { // data frames are 0 (regular) or 1 (async)
+			panic("invalid protocol prefix")
+		}
+
 		payload := msg[5:]
+		if len(payload) == 0 {
+			// Defensive: shouldn't happen for data frames
+			continue
+		}
 
 		resp := &pb.QueryResponse{}
 		if err := json.Unmarshal(payload, resp); err != nil {
@@ -107,7 +141,6 @@ func Query(data string, async, j bool) {
 			if err != nil {
 				panic(err)
 			}
-
 			fmt.Println(string(out))
 		}
 	}
