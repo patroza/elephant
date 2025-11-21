@@ -273,7 +273,7 @@ func loadDB(path string) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT key, value FROM ItemTable")
+	rows, err := db.Query("SELECT key, value FROM ItemTable WHERE key = 'history.recentlyOpenedPathsList'")
 	if err != nil {
 		slog.Error(Name, "query", err)
 		return
