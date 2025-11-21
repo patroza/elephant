@@ -273,6 +273,56 @@ func loadDB(path string) {
 	}
 	defer db.Close()
 
+	// Prefer the canonical VS Code key to preserve recency order
+	var valBytes []byte
+	if err := db.QueryRow("SELECT value FROM ItemTable WHERE key = ?", "history.recentlyOpenedPathsList").Scan(&valBytes); err == nil {
+		var obj map[string]any
+		if err := json.Unmarshal(valBytes, &obj); err == nil {
+			local := []projectEntry{}
+			// Newer VS Code: interleaved list under "entries" in most-recent-first order
+			if rawArr, ok := obj["entries"]; ok {
+				if vv, ok := rawArr.([]any); ok {
+					for _, it := range vv {
+						if pe, ok := parseEntry(it); ok {
+							local = append(local, pe)
+						}
+					}
+				}
+			} else {
+				// Older format: separate arrays; preserve given order per array
+				for _, arrKey := range []string{"workspaces", "files"} {
+					if rawArr, ok := obj[arrKey]; ok {
+						if vv, ok := rawArr.([]any); ok {
+							for _, it := range vv {
+								if pe, ok := parseEntry(it); ok {
+									local = append(local, pe)
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Deduplicate by path while preserving order
+			seen := make(map[string]struct{}, len(local))
+			dedup := make([]projectEntry, 0, len(local))
+			for _, e := range local {
+				if e.Path == "" {
+					continue
+				}
+				if _, ok := seen[e.Path]; ok {
+					continue
+				}
+				seen[e.Path] = struct{}{}
+				dedup = append(dedup, e)
+			}
+
+			entries = dedup
+			return
+		}
+	}
+
+	// Fallback: scan all keys with "recent" and append as discovered
 	rows, err := db.Query("SELECT key, value FROM ItemTable")
 	if err != nil {
 		slog.Error(Name, "query", err)
@@ -280,39 +330,54 @@ func loadDB(path string) {
 	}
 	defer rows.Close()
 
+	local := []projectEntry{}
 	for rows.Next() {
 		var key string
-		var valBytes []byte
-		if err := rows.Scan(&key, &valBytes); err != nil {
+		var vBytes []byte
+		if err := rows.Scan(&key, &vBytes); err != nil {
 			continue
 		}
 		if !strings.Contains(strings.ToLower(key), "recent") && key != "history.recentlyOpenedPathsList" {
 			continue
 		}
 
-		// Attempt to parse JSON
 		var obj map[string]any
-		if err := json.Unmarshal(valBytes, &obj); err != nil {
+		if err := json.Unmarshal(vBytes, &obj); err != nil {
 			continue
 		}
-		// Expect array under entries or recentlyOpened list variants
 		for _, arrKey := range []string{"entries", "recentlyOpened", "workspaces", "files"} {
 			if rawArr, ok := obj[arrKey]; ok {
-				switch vv := rawArr.(type) {
-				case []any:
+				if vv, ok := rawArr.([]any); ok {
 					for _, item := range vv {
-						parseEntry(item)
+						if pe, ok := parseEntry(item); ok {
+							local = append(local, pe)
+						}
 					}
 				}
 			}
 		}
 	}
+
+	// Deduplicate while preserving order
+	seen := make(map[string]struct{}, len(local))
+	dedup := make([]projectEntry, 0, len(local))
+	for _, e := range local {
+		if e.Path == "" {
+			continue
+		}
+		if _, ok := seen[e.Path]; ok {
+			continue
+		}
+		seen[e.Path] = struct{}{}
+		dedup = append(dedup, e)
+	}
+	entries = dedup
 }
 
-func parseEntry(v any) {
+func parseEntry(v any) (projectEntry, bool) {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return
+		return projectEntry{}, false
 	}
 	label := str(m["label"])
 	folder := str(m["folderUri"])
@@ -328,7 +393,7 @@ func parseEntry(v any) {
 		}
 	}
 	if path == "" {
-		return
+		return projectEntry{}, false
 	}
 	if folder != "" {
 		kind = "folder"
@@ -338,7 +403,7 @@ func parseEntry(v any) {
 		kind = "workspace"
 	}
 
-	entries = append(entries, projectEntry{Path: path, Label: label, Kind: kind, Raw: m})
+	return projectEntry{Path: path, Label: label, Kind: kind, Raw: m}, true
 }
 
 func str(v any) string {
