@@ -185,6 +185,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, format uint8) [
 			Provider:   Name,
 			Icon:       config.Icon,
 			Actions:    []string{ActionOpen, ActionReveal},
+			Score:      int32(1000000000 - i), // Higher score for more recent items
 		}
 
 		if query != "" {
