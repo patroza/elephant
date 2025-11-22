@@ -4,7 +4,7 @@
 
 -- TODO: background refresh?
 
-Name = "vscodeprojects"
+Name = "vscodeprojectsmenu"
 NamePretty = "VSCode Projects"
 Icon = "visual-studio-code"
 Description = "Recent VS Code folders / workspaces"
@@ -106,7 +106,7 @@ local function parse_entries()
                         if id:match("%.code%-workspace$") then
                             id = id:gsub("%.code%-workspace$", "") .. " \\(Workspace\\)"
                         end
-                        local actionStart = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
+                        local actionStart = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)  + " && " + string.format("code '%s'", path)
                         local revealDir = path
                         -- If file (workspace file etc.), reveal its parent directory
                         local attr2 = io.popen("stat -c %F '" .. path .. "' 2>/dev/null")

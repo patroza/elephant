@@ -142,7 +142,8 @@ func Activate(single bool, identifier, action, query, args string, format uint8,
 		if strings.HasSuffix(id, ".code-workspace") {
 			id = strings.ReplaceAll(id, ".code-workspace", "") + " \\(Workspace\\)"
 		}
-		cmdStr = strings.TrimSpace(fmt.Sprintf(`%s omarchy-launch-or-focus "%s - Visual Studio Code" "%s '%s'"`, common.LaunchPrefix(""), id, config.Command, pe.Path))
+		// we run the original command too, so that vscode update it's history..
+		cmdStr = strings.TrimSpace(fmt.Sprintf(`%s omarchy-launch-or-focus "%s - Visual Studio Code" "%s '%s'"`, common.LaunchPrefix(""), id, config.Command, pe.Path) + " && " + fmt.Sprintf(`%s %s '%s'`, common.LaunchPrefix(""), config.Command, pe.Path))
 		//		cmdStr = strings.TrimSpace(fmt.Sprintf("%s %s '%s'", common.LaunchPrefix(""), config.Command, pe.Path))
 	case ActionReveal:
 		cmdStr = strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), filepath.Dir(pe.Path)))
