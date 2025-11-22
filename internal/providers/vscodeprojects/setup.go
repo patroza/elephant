@@ -59,10 +59,10 @@ var config *Config
 // Raw is raw JSON object for future use
 // Last is not yet populated (future)
 type projectEntry struct {
-	Path  string
-	Label string
-	Kind  string
-	Raw   map[string]any
+	Path   string
+	Label  string
+	Kind   string
+	Raw    map[string]any
 	Branch string
 }
 
