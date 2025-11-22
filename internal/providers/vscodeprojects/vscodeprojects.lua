@@ -35,6 +35,7 @@ local function parse_entries()
     local entries = {}
     local json = read_recent_json()
     if not json then return entries end
+    local idx = 0 -- preserve original order via descending score
 
     -- Prefer jq if installed.
     local jq_test = os.execute("command -v jq >/dev/null 2>&1")
@@ -117,7 +118,9 @@ local function parse_entries()
                             Value = path,
                             Actions = { start = actionStart, reveal = actionReveal },
                             Icon = Icon,
+                            Score = 1000000000 - idx,
                         })
+                        idx = idx + 1
                     end
                 end
             end
@@ -183,7 +186,9 @@ local function parse_entries()
                 Value = path,
                 Actions = { start = actionStart, reveal = actionReveal },
                 Icon = Icon,
+                Score = 1000000000 - idx,
             })
+            idx = idx + 1
         end
     end
     return entries
