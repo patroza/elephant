@@ -4,20 +4,23 @@
 
 -- TODO: background refresh?
 
+local home = os.getenv("HOME") or ""
+local db_path = home .. "/.config/Code/User/globalStorage/state.vscdb"
+
+
 Name = "vscodeprojectsmenu"
 NamePretty = "VSCode Projects"
 Icon = "visual-studio-code"
 Description = "Recent VS Code folders / workspaces"
 Cache = true -- cache between empty queries to avoid constant sqlite calls
+RefreshOnChange = { db_path }
 SearchName = true
 FixedOrder = true -- keep original order from VSCode recent list
 -- as we cache the list to make it quick, and because launch-or-focus doesn't update history anyway, we try using elephant history :D 
 -- doesnt help though :D
-History              = true
-HistoryWhenEmpty     = true  
+-- History              = true
+-- HistoryWhenEmpty     = true
 
-local home = os.getenv("HOME") or ""
-local db_path = home .. "/.config/Code/User/globalStorage/state.vscdb"
 
 -- Attempt to get list JSON via sqlite3. Returns raw JSON string or nil.
 local function read_recent_json()
@@ -106,7 +109,7 @@ local function parse_entries()
                         if id:match("%.code%-workspace$") then
                             id = id:gsub("%.code%-workspace$", "") .. " \\(Workspace\\)"
                         end
-                        local actionStart = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)  + " && " + string.format("code '%s'", path)
+                        local actionStart = string.format("%s && %s", string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path), string.format("code '%s'", path))
                         local revealDir = path
                         -- If file (workspace file etc.), reveal its parent directory
                         local attr2 = io.popen("stat -c %F '" .. path .. "' 2>/dev/null")
