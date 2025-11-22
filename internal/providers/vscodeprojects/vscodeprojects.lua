@@ -2,12 +2,19 @@
 -- Reads the VS Code state SQLite DB and exposes recent projects.
 -- Mirrors functionality of the Go provider but runs as a Lua menu.
 
+-- TODO: background refresh?
+
 Name = "vscodeprojects"
 NamePretty = "VSCode Projects"
 Icon = "visual-studio-code"
 Description = "Recent VS Code folders / workspaces"
 Cache = true -- cache between empty queries to avoid constant sqlite calls
 SearchName = true
+FixedOrder = true -- keep original order from VSCode recent list
+-- as we cache the list to make it quick, and because launch-or-focus doesn't update history anyway, we try using elephant history :D 
+-- doesnt help though :D
+History              = true
+HistoryWhenEmpty     = true  
 
 local home = os.getenv("HOME") or ""
 local db_path = home .. "/.config/Code/User/globalStorage/state.vscdb"
@@ -35,7 +42,6 @@ local function parse_entries()
     local entries = {}
     local json = read_recent_json()
     if not json then return entries end
-    local idx = 0 -- preserve original order via descending score
 
     -- Prefer jq if installed.
     local jq_test = os.execute("command -v jq >/dev/null 2>&1")
@@ -118,9 +124,7 @@ local function parse_entries()
                             Value = path,
                             Actions = { start = actionStart }, -- for whatever reasons, multiple actions means you cant press enter? , reveal = actionReveal
                             Icon = Icon,
-                            Score = 1000000000 - idx,
                         })
-                        idx = idx + 1
                     end
                 end
             end
@@ -186,9 +190,7 @@ local function parse_entries()
                 Value = path,
                 Actions = { start = actionStart }, -- for whatever reasons, multiple actions means you cant press enter?
                 Icon = Icon,
-                Score = 1000000000 - idx,
             })
-            idx = idx + 1
         end
     end
     return entries
