@@ -19,32 +19,6 @@ HistoryWhenEmpty     = true
 local home = os.getenv("HOME") or ""
 local db_path = home .. "/.config/Code/User/globalStorage/state.vscdb"
 
--- Helper: get mtime (unix epoch) for db file
-local function file_mtime(path)
-    local h = io.popen("stat -c %Y '" .. path .. "' 2>/dev/null")
-    if not h then return 0 end
-    local out = h:read("*l") or "0"
-    h:close()
-    return tonumber(out) or 0
-end
-
--- Decode cached state if present
-local function load_cache()
-    if not state then return nil end -- defensive if environment differs
-    local raw = state()
-    if not raw or raw == '' then return nil end
-    if not jsonDecodes then return nil end
-    local ok, decoded = pcall(jsonDecodes, raw)
-    if not ok then return nil end
-    return decoded
-end
-
-local function save_cache(obj)
-    if not setState or not jsonEncode then return end
-    local ok, encoded = pcall(jsonEncode, obj)
-    if ok then setState(encoded) end
-end
-
 -- Attempt to get list JSON via sqlite3. Returns raw JSON string or nil.
 local function read_recent_json()
     local f = io.open(db_path, "r")
@@ -223,14 +197,5 @@ local function parse_entries()
 end
 
 function GetEntries()
-    -- Cached approach: refresh only when mtime changes.
-    local current_mtime = file_mtime(db_path)
-    local cached = load_cache()
-    if cached and cached.mtime and cached.entries and cached.mtime == current_mtime then
-        return cached.entries
-    end
-
-    local entries = parse_entries()
-    save_cache({ mtime = current_mtime, entries = entries })
-    return entries
+    return parse_entries()
 end
