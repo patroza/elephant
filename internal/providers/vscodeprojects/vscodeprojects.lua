@@ -129,11 +129,36 @@ local function parse_entries()
             if id:match("%.code%-workspace$") then
                 id = id:gsub("%.code%-workspace$", "") .. " \\(Workspace\\)"
             end
+            -- git branch (silent fail) fallback
+            local git_dir = path
+            local attr = io.popen("stat -c %F '" .. path .. "' 2>/dev/null")
+            if attr then
+                local t = attr:read("*l") or ''
+                attr:close()
+                if not t:match("directory") then
+                    git_dir = path:gsub("/[^/]+$", "")
+                end
+            end
             local branch = ''
+            local head_cmd = "bash -c 'd=\"" .. git_dir .. "\"; for i in {1..6}; do if [ -f \"$d/.git/HEAD\" ]; then cat \"$d/.git/HEAD\"; break; fi; nd=\"$(dirname \"$d\")\"; [ \"$nd\" = \"$d\" ] && break; d=\"$nd\"; done'"
+            local head = io.popen(head_cmd)
+            if head then
+                local headContent = head:read("*l") or ''
+                head:close()
+                if headContent:match("ref:") then
+                    branch = headContent:gsub(".*refs/heads/", "")
+                elseif headContent ~= '' then
+                    branch = "detached:" .. headContent:sub(1,7)
+                end
+            end
+            local subtext = path
+            if branch ~= '' then
+                subtext = subtext .. " [" .. branch .. "]"
+            end
             local action = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
             table.insert(entries, {
                 Text = label ~= '' and label or base,
-                Subtext = path,
+                Subtext = subtext,
                 Value = path,
                 Actions = { start = action },
                 Icon = Icon,
