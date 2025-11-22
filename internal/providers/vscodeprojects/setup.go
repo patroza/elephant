@@ -63,6 +63,7 @@ type projectEntry struct {
 	Label string
 	Kind  string
 	Raw   map[string]any
+	Branch string
 }
 
 var (
@@ -184,6 +185,9 @@ func Query(conn net.Conn, query string, single bool, exact bool, format uint8) [
 			text = filepath.Base(e.Path)
 		}
 		sub := e.Path
+		if e.Branch != "" {
+			sub = fmt.Sprintf("%s [%s]", e.Path, e.Branch)
+		}
 
 		item := &pb.QueryResponse_Item{
 			Identifier: fmt.Sprintf("%d", i),
@@ -356,7 +360,8 @@ func parseEntry(v any) {
 		kind = "workspace"
 	}
 
-	entries = append(entries, projectEntry{Path: path, Label: label, Kind: kind, Raw: m})
+	branch := gitBranch(path)
+	entries = append(entries, projectEntry{Path: path, Label: label, Kind: kind, Raw: m, Branch: branch})
 }
 
 func str(v any) string {
@@ -384,4 +389,50 @@ func max(a, b int32) int32 {
 		return a
 	}
 	return b
+}
+
+// gitBranch attempts to read the current git branch for the given path.
+// It walks up a few parent directories looking for .git/HEAD. Fails silently.
+func gitBranch(path string) string {
+	// If path is a file (e.g. a workspace file), use its directory.
+	fi, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	base := path
+	if !fi.IsDir() {
+		base = filepath.Dir(path)
+	}
+
+	// Walk up to a limited depth to find .git
+	dir := base
+	for i := 0; i < 6; i++ { // limit depth to avoid expensive traversals
+		headPath := filepath.Join(dir, ".git", "HEAD")
+		if common.FileExists(headPath) {
+			b, err := os.ReadFile(headPath)
+			if err != nil {
+				return ""
+			}
+			content := strings.TrimSpace(string(b))
+			if strings.HasPrefix(content, "ref:") {
+				// ref: refs/heads/branch
+				parts := strings.Split(content, "/")
+				if len(parts) > 0 {
+					return parts[len(parts)-1]
+				}
+				return ""
+			}
+			// Detached head – use short hash
+			if len(content) >= 7 {
+				return "detached:" + content[:7]
+			}
+			return "detached"
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir { // reached filesystem root
+			break
+		}
+		dir = parent
+	}
+	return ""
 }
