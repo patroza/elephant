@@ -2,8 +2,8 @@
 -- Reads the VS Code state SQLite DB and exposes recent projects.
 -- Mirrors functionality of the Go provider but runs as a Lua menu.
 
-Name = "vscodeprojects_lua"
-NamePretty = "VSCode Projects (Lua)"
+Name = "vscodeprojects"
+NamePretty = "VSCode Projects"
 Icon = "visual-studio-code"
 Description = "Recent VS Code folders / workspaces"
 Cache = true -- cache between empty queries to avoid constant sqlite calls
