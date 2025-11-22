@@ -113,7 +113,7 @@ func HideFromProviderlist() bool {
 func Icon() string { return config.Icon }
 
 const (
-	ActionOpen   = "open"
+	ActionStart  = "start"
 	ActionReveal = "reveal"
 )
 
@@ -129,13 +129,13 @@ func Activate(single bool, identifier, action, query, args string, format uint8,
 	entriesMu.RUnlock()
 
 	if action == "" {
-		action = ActionOpen
+		action = ActionStart
 	}
 	slog.Info(Name, "activate", "opening entry", "id", identifier, "action", action)
 
 	var cmdStr string
 	switch action {
-	case ActionOpen:
+	case ActionStart:
 		// open in VS Code
 		var id = filepath.Base(pe.Path)
 		if strings.HasSuffix(id, ".code-workspace") {
@@ -191,7 +191,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, format uint8) [
 			Subtext:    sub,
 			Provider:   Name,
 			Icon:       config.Icon,
-			Actions:    []string{ActionOpen, ActionReveal},
+			Actions:    []string{ActionStart},
 			Score:      int32(1000000000 - i), // Higher score for more recent items
 		}
 
