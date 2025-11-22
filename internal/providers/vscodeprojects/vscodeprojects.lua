@@ -99,12 +99,23 @@ local function parse_entries()
                         if id:match("%.code%-workspace$") then
                             id = id:gsub("%.code%-workspace$", "") .. " \\(Workspace\\)"
                         end
-                        local action = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
+                        local actionStart = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
+                        local revealDir = path
+                        -- If file (workspace file etc.), reveal its parent directory
+                        local attr2 = io.popen("stat -c %F '" .. path .. "' 2>/dev/null")
+                        if attr2 then
+                            local t2 = attr2:read("*l") or ''
+                            attr2:close()
+                            if not t2:match("directory") then
+                                revealDir = path:gsub("/[^/]+$", "")
+                            end
+                        end
+                        local actionReveal = string.format("xdg-open '%s'", revealDir)
                         table.insert(entries, {
                             Text = lbl ~= '' and lbl or base,
                             Subtext = subtext,
                             Value = path,
-                            Actions = { start = action },
+                            Actions = { start = actionStart, reveal = actionReveal },
                             Icon = Icon,
                         })
                     end
@@ -155,12 +166,22 @@ local function parse_entries()
             if branch ~= '' then
                 subtext = subtext .. " [" .. branch .. "]"
             end
-            local action = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
+            local actionStart = string.format("omarchy-launch-or-focus \"%s - Visual Studio Code\" \"code '%s'\"", id, path)
+            local revealDir = path
+            local attr2 = io.popen("stat -c %F '" .. path .. "' 2>/dev/null")
+            if attr2 then
+                local t2 = attr2:read("*l") or ''
+                attr2:close()
+                if not t2:match("directory") then
+                    revealDir = path:gsub("/[^/]+$", "")
+                end
+            end
+            local actionReveal = string.format("xdg-open '%s'", revealDir)
             table.insert(entries, {
                 Text = label ~= '' and label or base,
                 Subtext = subtext,
                 Value = path,
-                Actions = { start = action },
+                Actions = { start = actionStart, reveal = actionReveal },
                 Icon = Icon,
             })
         end
