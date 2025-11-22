@@ -116,7 +116,7 @@ local function parse_entries()
                             Text = lbl ~= '' and lbl or base,
                             Subtext = subtext,
                             Value = path,
-                            Actions = { start = actionStart, reveal = actionReveal },
+                            Actions = { start = actionStart }, -- for whatever reasons, multiple actions means you cant press enter? , reveal = actionReveal
                             Icon = Icon,
                             Score = 1000000000 - idx,
                         })
@@ -184,7 +184,7 @@ local function parse_entries()
                 Text = label ~= '' and label or base,
                 Subtext = subtext,
                 Value = path,
-                Actions = { start = actionStart, reveal = actionReveal },
+                Actions = { start = actionStart }, -- for whatever reasons, multiple actions means you cant press enter?
                 Icon = Icon,
                 Score = 1000000000 - idx,
             })
