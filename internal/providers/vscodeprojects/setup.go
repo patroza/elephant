@@ -137,7 +137,12 @@ func Activate(single bool, identifier, action, query, args string, format uint8,
 	switch action {
 	case ActionOpen:
 		// open in VS Code
-		cmdStr = strings.TrimSpace(fmt.Sprintf("%s %s '%s'", common.LaunchPrefix(""), config.Command, pe.Path))
+		var id = filepath.Base(pe.Path)
+		if strings.HasSuffix(id, ".code-workspace") {
+			id = strings.ReplaceAll(id, ".code-workspace", "") + " \\(Workspace\\)"
+		}
+		cmdStr = strings.TrimSpace(fmt.Sprintf(`%s omarchy-launch-or-focus "%s - Visual Studio Code" "%s '%s'"`, common.LaunchPrefix(""), id, config.Command, pe.Path))
+		//		cmdStr = strings.TrimSpace(fmt.Sprintf("%s %s '%s'", common.LaunchPrefix(""), config.Command, pe.Path))
 	case ActionReveal:
 		cmdStr = strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), filepath.Dir(pe.Path)))
 	default:
@@ -320,7 +325,7 @@ func parseEntry(v any) {
 	label := str(m["label"])
 	folder := str(m["folderUri"])
 	file := str(m["fileUri"])
-	
+
 	// Handle workspace which can be a map with configPath
 	var workspace string
 	if wsVal := m["workspace"]; wsVal != nil {
@@ -330,7 +335,7 @@ func parseEntry(v any) {
 			workspace = str(wsVal)
 		}
 	}
-	
+
 	path := ""
 	kind := ""
 
@@ -350,8 +355,6 @@ func parseEntry(v any) {
 	} else if workspace != "" {
 		kind = "workspace"
 	}
-
-	slog.Info(Name, "loadDB", "found entry", "path", path, "label", label, "kind", kind)
 
 	entries = append(entries, projectEntry{Path: path, Label: label, Kind: kind, Raw: m})
 }
