@@ -100,7 +100,7 @@ func (m *Menu) watch() {
 					continue
 				}
 
-				if event.Op == fsnotify.Remove || event.Op == fsnotify.Rename {
+				if event.Op == fsnotify.Remove || event.Op == fsnotify.Rename || event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) {
 					changeChan <- struct{}{}
 					continue
 				}

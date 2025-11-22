@@ -1,4 +1,4 @@
-PREFIX=/usr
+export PREFIX=/usr
 make build
 make install
 
